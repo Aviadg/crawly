@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  chrome:
+    image: gcr.io/zenika-hub/alpine-chrome:124
+    restart: unless-stopped
+    ports:
+      - "9222:9222"
+    command:
+      - --no-sandbox
+      - --disable-gpu
+      - --disable-dev-shm-usage
+      - --remote-debugging-address=0.0.0.0
+      - --remote-debugging-port=9222
+      - --hide-scrollbars
+    shm_size: 2gb
+    environment:
+      - CHROME_EXTRA_FLAGS=--disable-blink-features=AutomationControlled
+
+  crawler:
+    build: .
+    depends_on:
+      - chrome
+    environment:
+      - CHROME_HTTP_URL=http://chrome:9222
+    volumes:
+      - ./output:/app/output
+      - ./crawl-test.ts:/app/crawl-test.ts
+    # Override with: docker-compose run crawler npm run crawl <url>
+
+  server:
+    build: .
+    depends_on:
+      - chrome
+    ports:
+      - "3010:3010"
+    environment:
+      - CHROME_HTTP_URL=http://chrome:9222
+    volumes:
+      - ./crawl-server.ts:/app/crawl-server.ts
+      - ./crawl-service.ts:/app/crawl-service.ts
+    command: npm run server
+    restart: unless-stopped
