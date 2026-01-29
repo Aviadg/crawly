@@ -123,15 +123,30 @@ export async function crawlUrl(url: string): Promise<CrawlResult> {
     let readableContent = null;
 
     try {
-      const readable = new Readability(dom.window.document).parse();
-      if (readable && readable.content) {
-        const purifyWindow = new JSDOM("").window;
-        try {
-          const purify = DOMPurify(purifyWindow);
-          readableContent = purify.sanitize(readable.content);
-        } finally {
-          purifyWindow.close();
+      const purifyWindow = new JSDOM("").window;
+      try {
+        const purify = DOMPurify(purifyWindow);
+
+        // Platform-specific extraction for Twitter/X
+        if (url.includes("twitter.com") || url.includes("x.com")) {
+          const tweetElement = dom.window.document.querySelector(
+            '[data-testid="tweetText"]'
+          );
+          if (tweetElement) {
+            console.log("Extracted tweet using data-testid selector");
+            readableContent = purify.sanitize(tweetElement.innerHTML);
+          }
         }
+
+        // Fallback to standard Readability if platform-specific failed
+        if (!readableContent) {
+          const readable = new Readability(dom.window.document).parse();
+          if (readable && readable.content) {
+            readableContent = purify.sanitize(readable.content);
+          }
+        }
+      } finally {
+        purifyWindow.close();
       }
     } finally {
       dom.window.close();
